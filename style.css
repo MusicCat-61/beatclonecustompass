@@ -85,6 +85,7 @@ header {
     width: 90px;
     height: 90px;
     z-index: 2;
+    position: relative;
 }
 
 .round-cover {
