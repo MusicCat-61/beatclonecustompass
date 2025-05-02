@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beatclone Custom Pass</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <div class="instruction-container">
+            <h2 data-i18n="instructions_title">Instructions</h2>
+            <ul>
+                <li data-i18n="instruction_1">1. Click on text to edit</li>
+                <li data-i18n="instruction_2">2. Upload covers...</li>
+                <li data-i18n="instruction_3">3. Click on difficulty...</li>
+                <li data-i18n="instruction_4">4. Adjust colors...</li>
+<li data-i18n="instruction_5">5. Download result...</li>
+            </ul>
+            <p data-i18n="round_cover_tip">Tip: The round cover...</p>
+        </div>
+        <div class="preview-container" id="preview">
+            <header id="header-section">
+                <div class="header-images">
+                    <img src="assets/box.png" alt="Box" class="box-image">
+                    <img src="assets/cover.png" alt="Round Cover" class="round-cover" id="round-cover">
+                </div>
+                <div class="header-text">
+                    <h1 contenteditable="true" data-i18n="pass_name_header">PASS NAME</h1>
+                    <p id="pass-name" contenteditable="true" data-i18n="beatclone_pass">BEATCLONE CUSTOM PASS</p>
+                    <p>SEASON SONGS</p>
+                    <p>0/9 COLLECTED</p>
+                </div>
+            </header>
+            <main>
+                <section class="song-grid" id="song-grid">
+                    <!-- Карточки будут добавляться динамически -->
+                </section>
+            </main>
+        </div>
+
+        <div class="controls-container">
+
+            <div class="language-switcher">
+                <div class="language-label" data-i18n="language">Language</div>
+                <div class="language-buttons">
+                    <button class="language-btn active" data-lang="ru">Русский</button>
+                    <button class="language-btn" data-lang="en">English</button>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label" data-i18n="background_color_label">Preview background:</label>
+                <input type="color" id="bg-color" value="#333333">
+            </div>
+
+            <div class="control-group">
+                <label class="control-label" data-i18n="header_color_label">Header color:</label>
+                <input type="color" id="header-color" value="#2a2a2a">
+            </div>
+
+            <div class="file-input-group">
+                <label class="custom-file-upload">
+                    <input type="file" id="bg-upload" accept="image/*">
+                    <span data-i18n="select_background">Select background</span>
+                </label>
+                <label class="custom-file-upload">
+                    <input type="file" id="song-upload" multiple accept="image/*">
+                    <span data-i18n="add_covers">Add covers</span>
+                </label>
+            </div>
+
+            <div class="buttons-group">
+                <button class="btn download-btn" id="download-btn" data-i18n="download_preview">Скачать превью</button>
+                <button class="btn reset-btn" id="reset-btn" data-i18n="reset">Сбросить</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+    // Определяем язык системы пользователя
+        let currentLang = localStorage.getItem('beatclone-lang') ||
+                     (navigator.language.startsWith('ru') ? 'ru' : 'en');
+
+        // Тексты для перевода с универсальными ключами
+        const translations = {
+            "pass_name_header": {
+                "en": "PASS NAME",
+                "ru": "НАЗВАНИЕ ПАССА"
+            },
+            "language": {
+                "en": "Language",
+                "ru": "Язык/Language"
+            },
+            "beatclone_pass": {
+                "en": "BEATCLONE CUSTOM PASS",
+                "ru": "КАСТОМНЫЙ ПАСС BEATCLONE"
+            },
+            "song_title": {
+                "en": "Song title",
+                "ru": "Название песни"
+            },
+            "artist": {
+                "en": "Artist",
+                "ru": "Исполнитель"
+            },
+            "select_background": {
+                "en": "Select background pic",
+                "ru": "Выбрать фоновую картинку"
+            },
+            "add_covers": {
+                "en": "Add covers (9 songs)",
+                "ru": "Добавить обложки (9 песен)"
+            },
+            "download_preview": {
+                "en": "Download preview",
+                "ru": "Скачать превью"
+            },
+            "reset": {
+                "en": "Reset",
+                "ru": "Сбросить"
+            },
+            "background_color_label": {
+                "en": "Preview background color:",
+                "ru": "Цвет фона превью:"
+            },
+            "header_color_label": {
+                "en": "Header color:",
+                "ru": "Цвет заголовка:"
+            },
+            "instructions_title": {
+                "en": "Instructions",
+                "ru": "Инструкция"
+            },
+            "instruction_1": {
+                "en": "1. Click on text to edit",
+                "ru": "1. Кликните на текст для редактирования"
+            },
+            "instruction_2": {
+                "en": "2. Upload covers: click on each or use 'Add covers' button",
+                "ru": "2. Загружайте обложки: кликом на каждую или кнопкой 'Добавить обложки'"
+            },
+            "instruction_3": {
+                "en": "3. Click on difficulty icon to select",
+                "ru": "3. Кликните на иконку сложности для выбора"
+            },
+            "instruction_4": {
+                "en": "4. Adjust background and header color",
+                "ru": "4. Настройте фон и цвет заголовка"
+            },
+            "instruction_5": {
+                "en": "5. Download the final result",
+                "ru": "5. Скачайте готовый результат"
+            },
+            "round_cover_tip": {
+                "en": "Tip: The round cover uses a random uploaded song cover. Or click on it to upload a different one",
+                "ru": "Подсказка: Для круглой обложки используется случайная загруженная обложка песни. Или кликните на неё, чтобы загрузить другую"
+            }
+        };
+        function setLanguage(lang) {
+        currentLang = lang;
+        // Сохраняем в LocalStorage
+        localStorage.setItem('beatclone-lang', lang);
+        // Обновляем кнопки
+        document.querySelectorAll('.language-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.lang === lang);
+        });
+        // Применяем перевод
+        translateText();
+    }
+
+        function translateText() {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (translations[key]) {
+                el.textContent = translations[key][currentLang];
+            }
+        });
+    }
+
+        document.addEventListener('DOMContentLoaded', () => {
+        // Инициализируем кнопки
+        document.querySelectorAll('.language-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                setLanguage(btn.dataset.lang);
+            });
+            btn.classList.toggle('active', btn.dataset.lang === currentLang);
+        });
+
+        translateText();
+        new BeatcloneEditor();
+    });
+    </script>
+
+</body>
+</html>

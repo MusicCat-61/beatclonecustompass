@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beatclone Custom Pass</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <div class="preview-container" id="preview">
+            <header id="header-section">
+                <div class="header-images">
+                    <img src="assets/box.png" alt="Box" class="box-image">
+                    <img src="assets/round-cover.jpg" alt="Round Cover" class="round-cover" id="round-cover">
+                </div>
+                <div class="header-text">
+                    <h1 contenteditable="true">METAL RISING</h1>
+                    <p id="pass-name">BEATCLONE CUSTOM PASS</p>
+                    <p>SEASON SONGS</p>
+                    <p>0/9 COLLECTED</p>
+                </div>
+            </header>
+            <main>
+                <section class="song-grid" id="song-grid">
+                    <!-- Карточки будут добавляться динамически -->
+                </section>
+            </main>
+        </div>
+
+        <div class="controls-container">
+            <div class="control-group">
+                <label class="control-label">Фон превью:</label>
+                <input type="color" id="bg-color" value="#333333">
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Цвет заголовка:</label>
+                <input type="color" id="header-color" value="#2a2a2a">
+            </div>
+
+            <div class="file-input-group">
+                <label class="custom-file-upload">
+                    <input type="file" id="bg-upload" accept="image/*">
+                    <span>Выбрать фон</span>
+                </label>
+                <label class="custom-file-upload">
+                    <input type="file" id="song-upload" multiple accept="image/*">
+                    <span>Добавить обложки (9 песен)</span>
+                </label>
+            </div>
+
+            <div class="buttons-group">
+                <button class="btn download-btn" id="download-btn">Скачать превью</button>
+                <button class="btn reset-btn" id="reset-btn">Сбросить</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
