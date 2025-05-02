@@ -7,6 +7,8 @@ class BeatcloneEditor {
         this.headerColor = document.getElementById('header-color');
         this.bgColor = document.getElementById('bg-color');
         this.uploadedCovers = [];
+        this.isFileDialogOpen = false;
+        this._isProcessingDownload = false;
         this.difficultyIcons = {
             normal: 'icons/diffNormal.png',
             normalplus: 'icons/diffNormalPlus.png',
@@ -50,6 +52,7 @@ class BeatcloneEditor {
                 el.blur();
             });
             this.downloadPreview();
+            return false;
         });
 
         document.getElementById('reset-btn').addEventListener('click', () => this.reset());
@@ -98,18 +101,22 @@ class BeatcloneEditor {
         });
 
         this.songGrid.addEventListener('click', (e) => {
-            if (e.target.closest('.icon')) {
-                const card = e.target.closest('.song-card');
-                this.showDifficultyMenu(card);
-            }
-        });
+        // Проверяем, был ли клик по изображению иконки сложности
+        if (e.target.closest('.icon img')) {
+            const card = e.target.closest('.song-card');
+            this.showDifficultyMenu(card);
+            e.stopPropagation(); // Останавливаем всплытие
 
-        this.songGrid.addEventListener('click', (e) => {
-            if (e.target.classList.contains('song-cover')) {
-                const card = e.target.closest('.song-card');
-                this.changeSongCover(card);
-            }
-        });
+        }
+
+        // Проверяем, был ли клик именно по изображению обложки
+        if (e.target.classList.contains('song-cover') && e.target.tagName === 'IMG') {
+            const card = e.target.closest('.song-card');
+            this.changeSongCover(card);
+            e.stopPropagation(); // Останавливаем всплытие
+
+        }
+    });
     }
 
     setupTextLimiters() {
@@ -196,6 +203,9 @@ class BeatcloneEditor {
 }
 
     handleSongUpload(event) {
+        if (this.isFileDialogOpen) return;
+        this.isFileDialogOpen = true;
+
         const files = event.target.files;
         this.uploadedCovers = Array.from(files);
 
@@ -211,6 +221,9 @@ class BeatcloneEditor {
                 };
                 img.src = e.target.result;
             };
+            reader.onloadend = () => {
+                this.isFileDialogOpen = false;
+            };
             reader.readAsDataURL(file);
         });
 
@@ -218,6 +231,9 @@ class BeatcloneEditor {
     }
 
     handleBgUpload(event) {
+        if (this.isFileDialogOpen) return;
+        this.isFileDialogOpen = true;
+
         const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
@@ -229,34 +245,67 @@ class BeatcloneEditor {
                 this.preview.style.backgroundRepeat = 'no-repeat';
                 this.updateTextColors();
             };
+            reader.onloadend = () => {
+                this.isFileDialogOpen = false;
+            };
             reader.readAsDataURL(file);
+        } else {
+            this.isFileDialogOpen = false;
         }
     }
 
     changeSongCover(card) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        card.querySelector('.song-cover').src = this.getSquareCroppedImage(img);
-                        if (!this.uploadedCovers.includes(file)) {
-                            this.uploadedCovers.push(file);
-                            this.updateRoundCover();
-                        }
-                    };
-                    img.src = event.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        };
-        input.click();
+    if (this.isFileDialogOpen || card._isProcessingCoverChange) {
+        return;
     }
+    card._isProcessingCoverChange = true;
+
+    this.isFileDialogOpen = true;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+
+    const cleanUp = () => {
+        this.isFileDialogOpen = false;
+        card._isProcessingCoverChange = false;
+        input.remove();
+    };
+
+    input.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    card.querySelector('.song-cover').src = this.getSquareCroppedImage(img);
+                    if (!this.uploadedCovers.includes(file)) {
+                        this.uploadedCovers.push(file);
+                        this.updateRoundCover();
+                    }
+                };
+                img.src = event.target.result;
+            };
+            reader.onloadend = cleanUp;
+            reader.readAsDataURL(file);
+        } else {
+            cleanUp();
+        }
+    });
+
+    input.addEventListener('cancel', cleanUp);
+
+    // Добавляем обработчик для закрытия диалога при потере фокуса
+    window.addEventListener('focus', () => {
+        setTimeout(() => {
+            if (this.isFileDialogOpen && document.activeElement !== input) {
+                cleanUp();
+            }
+        }, 300);
+    });
+
+    input.click();
+}
 
     getSquareCroppedImage(img) {
         const canvas = document.createElement('canvas');
@@ -378,18 +427,44 @@ class BeatcloneEditor {
     }
 
     downloadPreview() {
-        html2canvas(this.preview, {
-            scale: 2,
-            logging: false,
-            useCORS: true,
-            backgroundColor: null
-        }).then(canvas => {
-            const link = document.createElement('a');
-            link.download = 'beatclone-pass.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        });
+    if (this.isFileDialogOpen || this._isProcessingDownload) {
+        return;
     }
+    this._isProcessingDownload = true;
+    this.isFileDialogOpen = true;
+
+    // Unfocus всех редактируемых элементов перед скачиванием
+    document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+        el.blur();
+    });
+
+    const cleanUp = () => {
+        this.isFileDialogOpen = false;
+        this._isProcessingDownload = false;
+    };
+
+    html2canvas(this.preview, {
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        backgroundColor: null
+    }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'beatclone-pass.png';
+        link.href = canvas.toDataURL('image/png');
+
+        // Обработчики для определения завершения
+        link.addEventListener('click', cleanUp);
+        window.addEventListener('focus', () => {
+            setTimeout(cleanUp, 300);
+        });
+
+        link.click();
+    }).catch(error => {
+        console.error('Ошибка при создании превью:', error);
+        cleanUp();
+    });
+}
 
     reset() {
     this.headerSection.style.backgroundColor = '#2a2a2a';
