@@ -166,6 +166,20 @@ class BeatcloneEditor {
     }
 }
 
+    downloadSongCover(card) {
+        const cover = card.querySelector('.song-cover');
+        if (!cover || cover.src.includes('assets/placeholder.png')) {
+            return; // Не скачиваем placeholder
+        }
+
+        const link = document.createElement('a');
+        link.download = 'song-cover.png';
+        link.href = cover.src;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
     setupTextLimiters() {
     document.querySelectorAll('[contenteditable="true"]').forEach(el => {
         el.addEventListener('input', (e) => {
@@ -277,8 +291,8 @@ preventLineBreaks() {
         // Используем сохраненные данные или значения по умолчанию
         const cardData = currentCards[i] || {
             cover: 'assets/placeholder.png',
-            title: 'Название песни', // Дефолтное значение, translateText обновит его
-            artist: 'Исполнитель',  // Дефолтное значение, translateText обновит его
+            title: 'Название песни',
+            artist: 'Исполнитель',
             difficulty: 'icons/diffNormal.png'
         };
 
@@ -288,12 +302,21 @@ preventLineBreaks() {
                 <div class="icon">
                     <img src="${cardData.difficulty}" alt="Difficulty">
                 </div>
+                <button class="download-cover-btn" title="Download cover">🡻</button>
             </div>
             <div class="song-text-container">
                 <h2 class="song-title" contenteditable="true" data-i18n="song_title">${cardData.title}</h2>
                 <p class="song-artist" contenteditable="true" data-i18n="artist">${cardData.artist}</p>
             </div>
         `;
+
+        // Добавляем обработчик клика для кнопки скачивания
+        const downloadBtn = card.querySelector('.download-cover-btn');
+        downloadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.downloadSongCover(card);
+        });
+
         this.songGrid.appendChild(card);
     }
 
@@ -305,9 +328,6 @@ preventLineBreaks() {
 
     // Применяем перевод для новых карточек
     translateText();
-
-
-
 }
 
     handleSongUpload(event) {
