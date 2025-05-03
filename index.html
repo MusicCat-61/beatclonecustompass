@@ -9,9 +9,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
+
+
     <div class="app-container">
         <div class="instruction-container">
             <h2 data-i18n="instructions_title">Instructions</h2>
+            <p data-i18n="instruction_6">Tip: </p>
             <ul>
                 <li data-i18n="instruction_1">1. Click on text to edit</li>
                 <li data-i18n="instruction_2">2. Upload covers...</li>
@@ -29,7 +32,7 @@
                 </div>
                 <div class="header-text">
                     <h1 contenteditable="true" data-i18n="pass_name_header">PASS NAME</h1>
-                    <p id="pass-name" contenteditable="true" data-i18n="beatclone_pass">BEATCLONE CUSTOM PASS</p>
+                    <p id="pass-name" contenteditable="true" data-i18n="beatclone_pass">DESCRIPTION PASS</p>
                     <p>SEASON SONGS</p>
                     <p>0/9 COLLECTED</p>
                 </div>
@@ -70,6 +73,27 @@
                     <span data-i18n="add_covers">Add covers</span>
                 </label>
             </div>
+            <label class="control-label" data-i18n="song_spots_text">Song spots:</label>
+            <div class="song-count-control">
+                <button class="count-btn minus-btn">-</button>
+                <span class="count-value">9</span>
+                <button class="count-btn plus-btn">+</button>
+            </div>
+            <div class="search-cover-container">
+            <div class="control-group">
+                <label class="control-label" data-i18n="search_cover">Поиск обложки:</label>
+
+            </div>
+            <div class="control-group">
+                <input type="text" id="track" data-i18n-placeholder="track_placeholder" class="search-input">
+                <input type="text" id="artist" data-i18n-placeholder="artist_placeholder" class="search-input">
+            </div>
+            <div class="control-group">
+                <label class="control-label" data-i18n="card_number">Номер карточки:</label>
+                <input type="number" id="card-number" min="1" max="9" value="1" class="card-number-input">
+            </div>
+            <button class="btn search-btn" id="search-btn" data-i18n="search_button">Найти обложку</button>
+        </div>
 
             <div class="buttons-group">
                 <button class="btn download-btn" id="download-btn" data-i18n="download_preview">Скачать превью</button>
@@ -95,8 +119,8 @@
                 "ru": "Язык/Language"
             },
             "beatclone_pass": {
-                "en": "BEATCLONE CUSTOM PASS",
-                "ru": "КАСТОМНЫЙ ПАСС BEATCLONE"
+                "en": "DESCRIPTION PASS",
+                "ru": "ОПИСАНИЕ ПАССА"
             },
             "song_title": {
                 "en": "Song title",
@@ -111,8 +135,8 @@
                 "ru": "Выбрать фоновую картинку"
             },
             "add_covers": {
-                "en": "Add covers (9 songs)",
-                "ru": "Добавить обложки (9 песен)"
+                "en": "Add covers",
+                "ru": "Добавить обложки"
             },
             "download_preview": {
                 "en": "Download preview",
@@ -154,11 +178,39 @@
                 "en": "5. Download the final result",
                 "ru": "5. Скачайте готовый результат"
             },
+            "instruction_6": {
+                "en": "Tip: Select the number of songs using + and - buttons",
+                "ru": "Подсказка: Выберите количество песен кнопками + и -"
+            },
             "round_cover_tip": {
-                "en": "Tip: The round cover uses a last uploaded song cover. Or click on it to upload a different one",
-                "ru": "Подсказка: Для круглой обложки используется последняя загруженная обложка песни. Или кликните на неё, чтобы загрузить другую"
+                "en": "Tip: The round cover uses a last uploaded/random picture. Or click on it to upload a different one",
+                "ru": "Подсказка: Для круглой обложки используется последняя загруженная/рандомная картинка. Или кликните на неё, чтобы загрузить другую"
+            },
+            "song_spots_text": {
+                "en": "Song spots",
+                "ru": "Места для песен"
+            },
+            "search_cover": {
+                "en": "Search cover:",
+                "ru": "Поиск обложки:"
+            },
+            "track_placeholder": {
+                "en": "Track",
+                "ru": "Трек"
+            },
+            "artist_placeholder": {
+                "en": "Artist",
+                "ru": "Исполнитель"
+            },
+            "card_number": {
+                "en": "Spot number:",
+                "ru": "Номер песни:"
+            },
+            "search_button": {
+                "en": "Search cover",
+                "ru": "Найти обложку"
             }
-        };
+                    };
         function setLanguage(lang) {
         currentLang = lang;
         // Сохраняем в LocalStorage
@@ -172,13 +224,33 @@
     }
 
         function translateText() {
-        document.querySelectorAll('[data-i18n]').forEach(el => {
-            const key = el.getAttribute('data-i18n');
-            if (translations[key]) {
-                el.textContent = translations[key][currentLang];
-            }
-        });
-    }
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (!translations[key]) return;
+
+                // Для полей артиста, трека и заголовков проверяем, был ли изменен текст
+                if (['song_title', 'artist', 'pass_name_header', 'beatclone_pass'].includes(key)) {
+                    const ruText = translations[key]['ru'];
+                    const enText = translations[key]['en'];
+
+                    // Если текущий текст совпадает с русским или английским переводом - обновляем
+                    if (el.textContent.trim() === ruText || el.textContent.trim() === enText) {
+                        el.textContent = translations[key][currentLang];
+                    }
+                }
+                // Все остальные элементы переводим без проверок
+                else {
+                    el.textContent = translations[key][currentLang];
+                }
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (translations[key]) {
+                    el.placeholder = translations[key][currentLang];
+                }
+            });
+        }
+
 
         document.addEventListener('DOMContentLoaded', () => {
         // Инициализируем кнопки

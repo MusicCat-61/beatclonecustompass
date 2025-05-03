@@ -6,28 +6,36 @@ class BeatcloneEditor {
         this.roundCover = document.getElementById('round-cover');
         this.headerColor = document.getElementById('header-color');
         this.bgColor = document.getElementById('bg-color');
-        this.uploadedCovers = [];
-        this.isFileDialogOpen = false;
+        this.isFileDialogOpen = false; // Для changeSongCover и handleSongUpload
+        this.isRoundCoverDialogOpen = false; // Для changeRoundCover
+        this.isDownloadDialogOpen = false;
+        this._isProcessingRoundCover = false;
         this._isProcessingDownload = false;
+        this.uploadedCovers = [];
+        this.songCount = 9;
+        this.countValueElement = document.querySelector('.count-value');
+        this.minusBtn = document.querySelector('.minus-btn');
+        this.plusBtn = document.querySelector('.plus-btn');
+
         this.difficultyIcons = {
             normal: 'icons/diffNormal.png',
-            normalplus: 'icons/diffNormalPlus.png',
+            harder_than_normal: 'icons/diffNormalPlus.png',
             hard: 'icons/diffHard.png',
-            hardlow: 'icons/diffHardLow.png',
+            easier_than_hard: 'icons/diffHardLow.png',
             harder_than_hard: 'icons/diffHardPlus.png',
             extreme: 'icons/diffExtreme.png',
-            extremelow: 'icons/diffExtremeLow.png',
+            easier_than_extreme: 'icons/diffExtremeLow.png',
             harder_than_extreme: 'icons/diffExtremePlus.png',
             insane: 'icons/diffInsane.png',
-            insanelow: 'icons/diffInsaneLow.png',
-            insaneplus: 'icons/diffInsanePlus.png',
+            easier_than_insane: 'icons/diffInsaneLow.png',
+            harder_than_insane: 'icons/diffInsanePlus.png',
             master: 'icons/diffmaster.png'
         };
         this.MAX_LENGTHS = {
-            headerTitle: 16,
-            passName: 25,
+            headerTitle: 18,
+            passName: 26,
             songTitle: 30,
-            songArtist: 30
+            songArtist: 25
         };
 
         this.initialize();
@@ -46,19 +54,61 @@ class BeatcloneEditor {
 
 
     setupEventListeners() {
-        document.getElementById('download-btn').addEventListener('click', () => {
-            // Unfocus всех редактируемых элементов перед скачиванием
-            document.querySelectorAll('[contenteditable="true"]').forEach(el => {
-                el.blur();
-            });
+        document.getElementById('download-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
             this.downloadPreview();
-            return false;
         });
 
         document.getElementById('reset-btn').addEventListener('click', () => this.reset());
 
         document.getElementById('song-upload').addEventListener('change', (e) => this.handleSongUpload(e));
         document.getElementById('bg-upload').addEventListener('change', (e) => this.handleBgUpload(e));
+
+        document.getElementById('search-btn').addEventListener('click', async () => {
+            const artist = document.getElementById("artist").value;
+            const track = document.getElementById("track").value;
+            const cardNumber = parseInt(document.getElementById("card-number").value) - 1;
+
+            if (!artist || !track) {
+                alert("Пожалуйста, введите название трека и исполнителя");
+                return;
+            }
+
+            const cards = document.querySelectorAll('.song-card');
+            if (cardNumber < 0 || cardNumber >= cards.length) {
+                alert("Некорректный номер карточки");
+                return;
+            }
+
+            const url = `https://itunes.apple.com/search?term=${encodeURIComponent(artist)}+${encodeURIComponent(track)}&entity=song&limit=1`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.results && data.results[0]?.artworkUrl100) {
+                    const coverUrl = data.results[0].artworkUrl100.replace("100x100", "500x500");
+                    const img = new Image();
+                    img.crossOrigin = "Anonymous";
+                    img.onload = () => {
+                        cards[cardNumber].querySelector('.song-cover').src = this.getSquareCroppedImage(img);
+                        // Обновляем текст карточки
+                        cards[cardNumber].querySelector('.song-title').textContent = track;
+                        cards[cardNumber].querySelector('.song-artist').textContent = artist;
+                    };
+                    img.src = coverUrl;
+                } else {
+                    alert("Обложка не найдена 😢");
+                    cards[cardNumber].querySelector('.song-title').textContent = track;
+                    cards[cardNumber].querySelector('.song-artist').textContent = artist;
+                }
+            } catch (error) {
+                console.error("Ошибка при запросе к API:", error);
+                alert("Ошибка при запросе к API");
+            }
+        });
+
 
         this.headerColor.addEventListener('input', () => {
             this.headerSection.style.backgroundColor = this.headerColor.value;
@@ -72,25 +122,10 @@ class BeatcloneEditor {
         });
 
         this.roundCover.addEventListener('click', (e) => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.onchange = (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            this.roundCover.src = this.getSquareCroppedImage(img);
-                        };
-                        img.src = event.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                }
-            };
-            input.click();
-        });
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        this.changeRoundCover();
+    });
 
         this.preview.addEventListener('click', (e) => {
             const target = e.target;
@@ -117,89 +152,161 @@ class BeatcloneEditor {
 
         }
     });
+        this.minusBtn.addEventListener('click', () => this.changeSongCount(-1));
+        this.plusBtn.addEventListener('click', () => this.changeSongCount(1));
     }
+
+    changeSongCount(change) {
+    const newCount = this.songCount + change;
+    if (newCount >= 1 && newCount <= 9) { // You can adjust max count as needed
+        this.songCount = newCount;
+        this.countValueElement.textContent = newCount;
+        this.createSongCards(newCount);
+    }
+}
 
     setupTextLimiters() {
-        // Ограничиваем длину текста в редактируемых элементах
-        document.querySelectorAll('[contenteditable="true"]').forEach(el => {
-            el.addEventListener('input', () => {
-                let maxLength;
-                if (el.classList.contains('song-title')) {
-                    maxLength = this.MAX_LENGTHS.songTitle;
-                } else if (el.classList.contains('song-artist')) {
-                    maxLength = this.MAX_LENGTHS.songArtist;
-                } else if (el.id === 'pass-name') {
-                    maxLength = this.MAX_LENGTHS.passName;
-                } else if (el.tagName === 'H1') {
-                    maxLength = this.MAX_LENGTHS.headerTitle;
+    document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+        el.addEventListener('input', (e) => {
+            const selection = window.getSelection();
+            const range = selection.getRangeAt(0);
+            const cursorPos = range.startOffset;
+            const isComposing = e.isComposing;
+
+            if (isComposing) return;
+
+            let maxLength;
+            if (el.classList.contains('song-title')) {
+                maxLength = this.MAX_LENGTHS.songTitle;
+            } else if (el.classList.contains('song-artist')) {
+                maxLength = this.MAX_LENGTHS.songArtist;
+            } else if (el.id === 'pass-name') {
+                maxLength = this.MAX_LENGTHS.passName;
+            } else if (el.tagName === 'H1') {
+                maxLength = this.MAX_LENGTHS.headerTitle;
+            }
+
+            if (maxLength) {
+                // Удаляем все пробелы в начале и конце
+                const originalText = el.textContent.trim();
+
+                // Обрезаем текст до максимальной длины
+                const newText = originalText.slice(0, maxLength);
+
+                if (originalText !== newText) {
+                    el.textContent = newText;
+
+                    // Восстанавливаем позицию курсора
+                    const newRange = document.createRange();
+                    const textNode = el.firstChild || document.createTextNode('');
+
+                    if (!el.firstChild) el.appendChild(textNode);
+
+                    newRange.setStart(textNode, Math.min(cursorPos, newText.length));
+                    newRange.collapse(true);
+
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
                 }
-
-                if (maxLength && el.textContent.length > maxLength) {
-                    el.textContent = el.textContent.substring(0, maxLength);
-                    // Перемещаем курсор в конец
-                    const range = document.createRange();
-                    range.selectNodeContents(el);
-                    range.collapse(false);
-                    const sel = window.getSelection();
-                    sel.removeAllRanges();
-                    sel.addRange(range);
-                }
-            });
-        });
-    }
-
-    preventLineBreaks() {
-    const editableElements = document.querySelectorAll('header [contenteditable="true"]');
-
-    editableElements.forEach(el => {
-        // Запрет переноса строки
-        el.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                return false;
             }
         });
 
-        // Удаление существующих переносов
-        el.addEventListener('input', () => {
-            el.textContent = el.textContent.replace(/[\r\n]/g, '');
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') e.preventDefault();
+
+            const maxLength = this._getMaxLengthForElement(el);
+            if (maxLength && el.textContent.length >= maxLength &&
+                !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+    });
 
 
+        // Обработка специальных клавиш
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') e.preventDefault();
+
+            const isDeletion = e.key === 'Backspace' || e.key === 'Delete';
+            if (isDeletion) return;
+
+            const maxLength = this._getMaxLengthForElement(el);
+            if (maxLength && el.textContent.length >= maxLength) {
+                e.preventDefault();
+            }
         });
 
-        // Фиксируем высоту элемента
-        if (el.tagName === 'H1') {
-            el.style.height = '24px';
-            el.style.lineHeight = '24px';
-        } else {
-            el.style.height = '16px';
-            el.style.lineHeight = '16px';
-        }
-        el.style.overflow = 'hidden';
+}
+
+_getMaxLengthForElement(el) {
+    if (el.classList.contains('song-title')) return this.MAX_LENGTHS.songTitle;
+    if (el.classList.contains('song-artist')) return this.MAX_LENGTHS.songArtist;
+    if (el.id === 'pass-name') return this.MAX_LENGTHS.passName;
+    if (el.tagName === 'H1') return this.MAX_LENGTHS.headerTitle;
+    return null;
+}
+
+preventLineBreaks() {
+    const editableElements = document.querySelectorAll('[contenteditable="true"]');
+
+    editableElements.forEach(el => {
+        el.style.whiteSpace = 'nowrap';
+        el.style.overflow = 'visible';  // Изменили с 'hidden' на 'visible'
+        el.style.textOverflow = 'clip';  // Убрали 'ellipsis'
+        el.style.display = 'inline-block';
+        el.style.width = 'auto';         // Или '100%' в зависимости от макета
     });
 }
 
     createSongCards(count) {
+    // Сохраняем текущие данные карточек
+    const currentCards = Array.from(this.songGrid.children).map(card => ({
+        cover: card.querySelector('.song-cover').src,
+        title: card.querySelector('.song-title').textContent,
+        artist: card.querySelector('.song-artist').textContent,
+        difficulty: card.querySelector('.icon img').src
+    }));
+
     this.songGrid.innerHTML = '';
+
     for (let i = 0; i < count; i++) {
         const card = document.createElement('div');
         card.className = 'song-card';
+
+        // Используем сохраненные данные или значения по умолчанию
+        const cardData = currentCards[i] || {
+            cover: 'assets/placeholder.png',
+            title: 'Название песни', // Дефолтное значение, translateText обновит его
+            artist: 'Исполнитель',  // Дефолтное значение, translateText обновит его
+            difficulty: 'icons/diffNormal.png'
+        };
+
         card.innerHTML = `
             <div class="song-cover-container">
-                <img src="assets/placeholder.png" alt="Cover" class="song-cover">
+                <img src="${cardData.cover}" alt="Cover" class="song-cover">
                 <div class="icon">
-                    <img src="icons/diffNormal.png" alt="Difficulty">
+                    <img src="${cardData.difficulty}" alt="Difficulty">
                 </div>
             </div>
             <div class="song-text-container">
-                <h2 class="song-title" contenteditable="true" data-i18n="song_title">Название песни</h2>
-                <p class="song-artist" contenteditable="true" data-i18n="artist">Исполнитель</p>
+                <h2 class="song-title" contenteditable="true" data-i18n="song_title">${cardData.title}</h2>
+                <p class="song-artist" contenteditable="true" data-i18n="artist">${cardData.artist}</p>
             </div>
         `;
         this.songGrid.appendChild(card);
     }
-    // Применяем перевод после создания карточек
+
+    // Обновляем счетчик коллекции
+    const collectedText = document.querySelector('header p:last-child');
+    if (collectedText) {
+        collectedText.textContent = `0/${count} COLLECTED`;
+    }
+
+    // Применяем перевод для новых карточек
     translateText();
+
+
+
 }
 
     handleSongUpload(event) {
@@ -252,6 +359,56 @@ class BeatcloneEditor {
         } else {
             this.isFileDialogOpen = false;
         }
+    }
+
+    changeRoundCover() {
+        if (this.isRoundCoverDialogOpen || this._isProcessingRoundCover) return;
+            this._isProcessingRoundCover = true;
+            this.isRoundCoverDialogOpen = true;
+
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+
+        const cleanUp = () => {
+            this.isRoundCoverDialogOpen = false;
+            this._isProcessingRoundCover = false;
+            input.remove();
+        };
+
+        input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.roundCover.src = this.getSquareCroppedImage(img);
+                        if (!this.uploadedCovers.includes(file)) {
+                            this.uploadedCovers.push(file);
+                    }
+
+                    };
+                    img.src = event.target.result;
+                };
+                reader.onloadend = cleanUp;
+                reader.readAsDataURL(file);
+            } else {
+                cleanUp();
+            }
+        });
+
+        input.addEventListener('cancel', cleanUp);
+
+        window.addEventListener('focus', () => {
+            setTimeout(() => {
+                if (this.isRoundCoverDialogOpen && document.activeElement !== input) {
+                    cleanUp();
+                }
+            }, 300);
+        });
+
+        input.click();
     }
 
     changeSongCover(card) {
@@ -356,6 +513,7 @@ class BeatcloneEditor {
         Object.keys(this.difficultyIcons).forEach(difficulty => {
             const item = document.createElement('div');
             item.className = 'difficulty-item';
+            item.dataset.difficulty = difficulty.replace(/_/g, ' ');
             const iconImg = document.createElement('img');
             iconImg.src = this.difficultyIcons[difficulty];
             iconImg.alt = difficulty;
@@ -427,94 +585,108 @@ class BeatcloneEditor {
     }
 
     downloadPreview() {
-    if (this.isFileDialogOpen || this._isProcessingDownload) {
-        return;
+        if (this.isDownloadDialogOpen || this._isProcessingDownload) return;
+        this._isProcessingDownload = true;
+        this.isDownloadDialogOpen = true;
+
+        // Снимаем фокус с редактируемых элементов
+        document.querySelectorAll('[contenteditable="true"]').forEach(el => el.blur());
+
+        const cleanUp = () => {
+            this.isDownloadDialogOpen = false;
+            this._isProcessingDownload = false;
+        };
+
+        const handleDownload = () => {
+            html2canvas(this.preview, {
+                scale: 2,
+                logging: false,
+                useCORS: true,
+                backgroundColor: null
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'beatclone-pass.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                cleanUp();
+            }).catch(error => {
+                console.error('Download error:', error);
+                cleanUp();
+            });
+        };
+
+        // Защита от потери фокуса
+        const focusHandler = () => {
+            setTimeout(() => {
+                if (this.isDownloadDialogOpen && !document.hasFocus()) {
+                    cleanUp();
+                }
+            }, 300);
+        };
+
+        window.addEventListener('focus', focusHandler);
+
+        // Задержка для гарантированного снятия фокуса
+        setTimeout(() => {
+            handleDownload();
+            window.removeEventListener('focus', focusHandler);
+        }, 100);
     }
-    this._isProcessingDownload = true;
-    this.isFileDialogOpen = true;
-
-    // Unfocus всех редактируемых элементов перед скачиванием
-    document.querySelectorAll('[contenteditable="true"]').forEach(el => {
-        el.blur();
-    });
-
-    const cleanUp = () => {
-        this.isFileDialogOpen = false;
-        this._isProcessingDownload = false;
-    };
-
-    html2canvas(this.preview, {
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        backgroundColor: null
-    }).then(canvas => {
-        const link = document.createElement('a');
-        link.download = 'beatclone-pass.png';
-        link.href = canvas.toDataURL('image/png');
-
-        // Обработчики для определения завершения
-        link.addEventListener('click', cleanUp);
-        window.addEventListener('focus', () => {
-            setTimeout(cleanUp, 300);
-        });
-
-        link.click();
-    }).catch(error => {
-        console.error('Ошибка при создании превью:', error);
-        cleanUp();
-    });
-}
 
     reset() {
-    this.headerSection.style.backgroundColor = '#2a2a2a';
-    this.headerColor.value = '#2a2a2a';
-    this.preview.style.backgroundColor = '#333';
-    this.preview.style.backgroundImage = 'none';
-    this.bgColor.value = '#333333';
+        this.headerSection.style.backgroundColor = '#2a2a2a';
+        this.headerColor.value = '#2a2a2a';
+        this.preview.style.backgroundColor = '#333';
+        this.preview.style.backgroundImage = 'none';
+        this.bgColor.value = '#333333';
 
-    // Сброс текста по индексам
-    const headerTexts = document.querySelectorAll('header [contenteditable="true"]');
-    if (headerTexts[0]) headerTexts[0].textContent = 'PASS NAME';
-    if (headerTexts[1]) headerTexts[1].textContent = 'BEATCLONE CUSTOM PASS';
+        // Сброс текста по индексам
+        const headerTexts = document.querySelectorAll('header [contenteditable="true"]');
+        if (headerTexts[0]) headerTexts[0].textContent = 'PASS NAME';
+        if (headerTexts[1]) headerTexts[1].textContent = 'DESCRIPTION PASS';
 
-    const headerTitle = document.querySelector('header h1');
-    const passName = document.getElementById('pass-name');
-    const seasonText = document.querySelector('header p:not(#pass-name)');
+        const headerTitle = document.querySelector('header h1');
+        const passName = document.getElementById('pass-name');
+        const seasonText = document.querySelector('header p:not(#pass-name)');
 
-    if (headerTitle) {
-        headerTitle.textContent = 'PASS NAME';
-        headerTitle.style.fontSize = '20px';
-        headerTitle.style.height = '24px';
-        headerTitle.style.lineHeight = '24px';
+        if (headerTitle) {
+            headerTitle.textContent = 'PASS NAME';
+            headerTitle.style.fontSize = '18px';
+            headerTitle.style.height = '24px';
+            headerTitle.style.lineHeight = '24px';
+        }
+
+        if (passName) {
+            passName.textContent = 'DESCRIPTION PASS';
+            passName.style.fontSize = '13px';
+            passName.style.height = '16px';
+            passName.style.lineHeight = '16px';
+        }
+
+        if (seasonText) {
+            seasonText.textContent = 'SEASON SONGS';
+        }
+
+        document.querySelectorAll('.song-card').forEach(card => {
+            card.querySelector('.song-cover').src = 'assets/placeholder.png';
+            const iconImg = card.querySelector('.icon img');
+            iconImg.src = 'icons/diffNormal.png';
+            iconImg.style.width = '25px';
+            iconImg.style.height = '25px';
+            card.querySelector('.song-title').textContent = 'Название песни';
+            card.querySelector('.song-artist').textContent = 'Исполнитель';
+        });
+        translateText();
+
+        this.roundCover.src = 'assets/cover.png';
+        this.uploadedCovers = [];
+        this.updateTextColors();
+        this.songCount = 9;
+        this.countValueElement.textContent = this.songCount;
+        this.createSongCards(this.songCount);
+
+
     }
-
-    if (passName) {
-        passName.textContent = 'BEATCLONE CUSTOM PASS';
-        passName.style.fontSize = '12px';
-        passName.style.height = '16px';
-        passName.style.lineHeight = '16px';
-    }
-
-    if (seasonText) {
-        seasonText.textContent = 'SEASON SONGS';
-    }
-
-    document.querySelectorAll('.song-card').forEach(card => {
-        card.querySelector('.song-cover').src = 'assets/placeholder.png';
-        const iconImg = card.querySelector('.icon img');
-        iconImg.src = 'icons/diffNormal.png';
-        iconImg.style.width = '25px';
-        iconImg.style.height = '25px';
-        card.querySelector('.song-title').textContent = 'Название песни';
-        card.querySelector('.song-artist').textContent = 'Исполнитель';
-    });
-    translateText();
-
-    this.roundCover.src = 'assets/cover.png';
-    this.uploadedCovers = [];
-    this.updateTextColors();
-}
 }
 
 document.addEventListener('DOMContentLoaded', () => {
