@@ -71,7 +71,7 @@ class BeatcloneEditor {
             const cardNumber = parseInt(document.getElementById("card-number").value) - 1;
 
             if (!artist || !track) {
-                alert("Пожалуйста, введите название трека и исполнителя");
+                alert("Пожалуйста, введите название трека и исполнителя\nPlease enter the track name and artist");
                 return;
             }
 
@@ -99,13 +99,13 @@ class BeatcloneEditor {
                     };
                     img.src = coverUrl;
                 } else {
-                    alert("Обложка не найдена 😢");
+                    alert("Обложка не найдена 😢\nCover not found");
                     cards[cardNumber].querySelector('.song-title').textContent = track;
                     cards[cardNumber].querySelector('.song-artist').textContent = artist;
                 }
             } catch (error) {
                 console.error("Ошибка при запросе к API:", error);
-                alert("Ошибка при запросе к API");
+                alert("Ошибка при запросе к API\nAPI request error");
             }
         });
 
