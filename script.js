@@ -88,10 +88,11 @@ class BeatcloneEditor {
                 const data = await response.json();
 
                 if (data.results && data.results[0]?.artworkUrl100) {
-                    const coverUrl = data.results[0].artworkUrl100.replace("100x100", "500x500");
+                    const coverUrl = data.results[0].artworkUrl100.replace("100x100", "512x512");
                     const img = new Image();
                     img.crossOrigin = "Anonymous";
                     img.onload = () => {
+
                         cards[cardNumber].querySelector('.song-cover').src = this.getSquareCroppedImage(img);
                         // Обновляем текст карточки
                         cards[cardNumber].querySelector('.song-title').textContent = track;
